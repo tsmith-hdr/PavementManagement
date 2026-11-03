@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Street Condition Widget</title>
 
@@ -13,8 +13,8 @@
 body {
     margin: 0;
     padding: 20px;
-    font-family: Georgia, serif;
     background: transparent;
+    font-family: Georgia, serif;
 }
 
 .widget {
@@ -27,14 +27,14 @@ body {
     width: 90px;
     height: 90px;
     border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
     background: conic-gradient(
         #4d8658 0% 0%,
         #e5e5e5 0% 100%
     );
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
 }
 
 .donut-inner {
@@ -47,8 +47,8 @@ body {
 .percent {
     font-size: 52px;
     line-height: 1;
-    color: #1f3a73;
     font-weight: bold;
+    color: #1f3a73;
 }
 
 .label {
@@ -73,11 +73,7 @@ body {
 
     <div>
         <div id="percent" class="percent loading">--%</div>
-
-        <div class="label">
-            Streets in good<br>
-            condition
-        </div>
+        <div id="label" class="label">Loading...</div>
     </div>
 
 </div>
@@ -85,21 +81,40 @@ body {
 <script>
 require([
     "esri/layers/FeatureLayer"
-], function(FeatureLayer) {
-
-    //////////////////////////////////////////////////////
-    // CONFIGURATION
-    //////////////////////////////////////////////////////
+], function (FeatureLayer) {
 
     const FEATURE_SERVICE_URL =
         "https://services7.arcgis.com/BJisQXdgVScP0JMy/arcgis/rest/services/StreetMaintenance/FeatureServer/0";
 
-    const CONDITION_SQL =
-        "PCICONDITI = 'Category I - Very Good'";
+    const params = new URLSearchParams(window.location.search);
 
-    //////////////////////////////////////////////////////
-    // QUERY LAYER
-    //////////////////////////////////////////////////////
+    const metric = (params.get("metric") || "good").toLowerCase();
+
+    const configs = {
+
+        good: {
+            where: "PCICONDITI IN ('Category I - Very Good')",
+            color: "#4d8658",
+            label: "Streets in good condition"
+        },
+
+        fair: {
+            where: "PCICONDITI = 'Category III - Fair'",
+            color: "#f2c94c",
+            label: "Streets in fair condition"
+        },
+
+        poor: {
+            where: "PCICONDITI IN ('Category IV - Poor','Category V - Very Poor')",
+            color: "#ef7e31",
+            label: "Streets in fair or<br>poor condition"
+        }
+
+    };
+
+    const config = configs[metric] || configs.good;
+
+    document.getElementById("label").innerHTML = config.label;
 
     const layer = new FeatureLayer({
         url: FEATURE_SERVICE_URL
@@ -111,12 +126,12 @@ require([
 
             const total = await layer.queryFeatureCount();
 
-            const result = await layer.queryFeatureCount({
-                where: CONDITION_SQL
+            const matching = await layer.queryFeatureCount({
+                where: config.where
             });
 
             const percent = total > 0
-                ? Math.round((result / total) * 100)
+                ? Math.round((matching / total) * 100)
                 : 0;
 
             document.getElementById("percent").textContent =
@@ -127,22 +142,25 @@ require([
 
             document.getElementById("donut").style.background =
                 `conic-gradient(
-                    #4d8658 0% ${percent}%,
+                    ${config.color} 0% ${percent}%,
                     #e5e5e5 ${percent}% 100%
                 )`;
 
-        } catch (error) {
+        }
+        catch (error) {
 
             console.error(error);
 
             document.getElementById("percent").textContent =
                 "N/A";
+
+            document.getElementById("label").innerHTML =
+                "Unable to load data";
         }
     }
 
     updateChart();
 
-    // Refresh every 5 minutes
     setInterval(updateChart, 300000);
 
 });
