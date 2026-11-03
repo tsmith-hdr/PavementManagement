@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>Street Condition Widget</title>
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css">
+<script src="https://js.arcgis.com/4.34/"></script>
+
+<style>
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Georgia, serif;
+    background: transparent;
+}
+
+.widget {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.donut {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: conic-gradient(
+        #4d8658 0% 0%,
+        #e5e5e5 0% 100%
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.donut-inner {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: white;
+}
+
+.percent {
+    font-size: 52px;
+    line-height: 1;
+    color: #1f3a73;
+    font-weight: bold;
+}
+
+.label {
+    font-size: 20px;
+    line-height: 1.15;
+    color: #1f3a73;
+}
+
+.loading {
+    color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<div class="widget">
+
+    <div id="donut" class="donut">
+        <div class="donut-inner"></div>
+    </div>
+
+    <div>
+        <div id="percent" class="percent loading">--%</div>
+
+        <div class="label">
+            Streets in good<br>
+            condition
+        </div>
+    </div>
+
+</div>
+
+<script>
+require([
+    "esri/layers/FeatureLayer"
+], function(FeatureLayer) {
+
+    //////////////////////////////////////////////////////
+    // CONFIGURATION
+    //////////////////////////////////////////////////////
+
+    const FEATURE_SERVICE_URL =
+        "https://services7.arcgis.com/BJisQXdgVScP0JMy/arcgis/rest/services/StreetMaintenance/FeatureServer/0";
+
+    const GOOD_CONDITION_SQL =
+        "PCICONDITI = 'Category I - Very Good'";
+
+    //////////////////////////////////////////////////////
+    // QUERY LAYER
+    //////////////////////////////////////////////////////
+
+    const layer = new FeatureLayer({
+        url: FEATURE_SERVICE_URL
+    });
+
+    async function updateChart() {
+
+        try {
+
+            const total = await layer.queryFeatureCount();
+
+            const good = await layer.queryFeatureCount({
+                where: GOOD_CONDITION_SQL
+            });
+
+            const percent = total > 0
+                ? Math.round((good / total) * 100)
+                : 0;
+
+            document.getElementById("percent").textContent =
+                percent + "%";
+
+            document.getElementById("percent")
+                .classList.remove("loading");
+
+            document.getElementById("donut").style.background =
+                `conic-gradient(
+                    #4d8658 0% ${percent}%,
+                    #e5e5e5 ${percent}% 100%
+                )`;
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById("percent").textContent =
+                "N/A";
+        }
+    }
+
+    updateChart();
+
+    // Refresh every 5 minutes
+    setInterval(updateChart, 300000);
+
+});
+</script>
+
+</body>
+</html>
