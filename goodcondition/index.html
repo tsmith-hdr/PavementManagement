@@ -94,7 +94,7 @@ require([
     const FEATURE_SERVICE_URL =
         "https://services7.arcgis.com/BJisQXdgVScP0JMy/arcgis/rest/services/StreetMaintenance/FeatureServer/0";
 
-    const GOOD_CONDITION_SQL =
+    const CONDITION_SQL =
         "PCICONDITI = 'Category I - Very Good'";
 
     //////////////////////////////////////////////////////
@@ -111,12 +111,12 @@ require([
 
             const total = await layer.queryFeatureCount();
 
-            const good = await layer.queryFeatureCount({
-                where: GOOD_CONDITION_SQL
+            const result = await layer.queryFeatureCount({
+                where: CONDITION_SQL
             });
 
             const percent = total > 0
-                ? Math.round((good / total) * 100)
+                ? Math.round((result / total) * 100)
                 : 0;
 
             document.getElementById("percent").textContent =
