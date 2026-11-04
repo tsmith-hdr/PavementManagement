@@ -199,7 +199,7 @@
             totalLength = feetToMiles(Number(totalLength))
             console.log(totalLength)
 
-            document.getElementById("percent").textContent = Math.round(totalLength) + " miles";
+            document.getElementById("percent").innerHTML = Math.round(totalLength) + "<span style='font-size: 0.55em;'> miles</span>";
 
             document.getElementById("percent").classList.remove("loading");
           } catch (error) {
