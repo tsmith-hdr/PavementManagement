@@ -1,170 +1,237 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<title>Street Condition Widget</title>
+    <title>Street Condition Widget</title>
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css">
-<script src="https://js.arcgis.com/4.34/"></script>
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.34/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.34/"></script>
 
-<style>
-body {
-    margin: 0;
-    padding: 20px;
-    background: transparent;
-    font-family: Georgia, serif;
-}
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: transparent;
+        font-family: Georgia, serif;
+      }
 
-.widget {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
+      .widget {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
 
-.donut {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-    background: conic-gradient(
-        #4d8658 0% 0%,
-        #e5e5e5 0% 100%
-    );
-}
+      .donut {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-shrink: 0;
+        background: conic-gradient(#4d8658 0% 0%, #e5e5e5 0% 100%);
+      }
 
-.donut-inner {
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    background: white;
-}
+      .donut-inner {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: white;
+      }
 
-.percent {
-    font-size: 52px;
-    line-height: 1;
-    font-weight: bold;
-    color: #1f3a73;
-}
+      .percent {
+        font-size: 52px;
+        line-height: 1;
+        font-weight: bold;
+        color: #1f3a73;
+      }
 
-.label {
-    font-size: 20px;
-    line-height: 1.15;
-    color: #1f3a73;
-}
+      .label {
+        font-size: 20px;
+        line-height: 1.15;
+        color: #1f3a73;
+      }
 
-.loading {
-    color: #666;
-}
-</style>
-</head>
+      .loading {
+        color: #666;
+      }
+    </style>
+  </head>
 
-<body>
-
-<div class="widget">
-
-    <div id="donut" class="donut">
+  <body>
+    <div class="widget">
+      <div id="donut" class="donut">
         <div class="donut-inner"></div>
-    </div>
+      </div>
 
-    <div>
+      <div>
         <div id="percent" class="percent loading">--%</div>
         <div id="label" class="label">Loading...</div>
+      </div>
     </div>
 
-</div>
+    <script>
+      require(["esri/layers/FeatureLayer"], function (FeatureLayer) {
+        const FEATURE_SERVICE_URL =
+          "https://services7.arcgis.com/BJisQXdgVScP0JMy/arcgis/rest/services/StreetMaintenance/FeatureServer/0";
 
-<script>
-require([
-    "esri/layers/FeatureLayer"
-], function (FeatureLayer) {
+        const params = new URLSearchParams(window.location.search);
 
-    const FEATURE_SERVICE_URL =
-        "https://services7.arcgis.com/BJisQXdgVScP0JMy/arcgis/rest/services/StreetMaintenance/FeatureServer/0";
+        const metric = (params.get("metric") || "good").toLowerCase();
 
-    const params = new URLSearchParams(window.location.search);
-
-    const metric = (params.get("metric") || "good").toLowerCase();
-
-    const configs = {
-
-        good: {
+        const configs = {
+          good: {
             where: "PCICONDITI IN ('Category I - Very Good')",
             color: "#4d8658",
-            label: "Streets in good <br>condition"
-        },
+            label: "Streets in good <br>condition",
+          },
 
-        fair: {
+          fair: {
             where: "PCICONDITI = 'Category III - Fair'",
             color: "#f2c94c",
-            label: "Streets in fair condition"
-        },
+            label: "Streets in fair condition",
+          },
 
-        poor: {
-            where: "PCICONDITI IN ('Category IV - Poor','Category V - Very Poor')",
+          poor: {
+            where:
+              "PCICONDITI IN ('Category IV - Poor','Category V - Very Poor')",
             color: "#ef7e31",
-            label: "Streets in fair or<br>poor condition"
-        }
+            label: "Streets in fair or<br>poor condition",
+          },
+          study: {
+            label: "Pavement study year",
+          },
+          miles: {
+            label: "City-maintained streets",
+          },
+        };
 
-    };
+        const config = configs[metric] || configs.good;
 
-    const config = configs[metric] || configs.good;
+        document.getElementById("label").innerHTML = config.label;
 
-    document.getElementById("label").innerHTML = config.label;
+        const layer = new FeatureLayer({
+          url: FEATURE_SERVICE_URL,
+        });
 
-    const layer = new FeatureLayer({
-        url: FEATURE_SERVICE_URL
-    });
+        function feetToMiles(feet) {
+  return feet * 0.000189394; // 1 foot = 0.000189394 miles
+}
 
-    async function updateChart() {
-
-        try {
-
-            const total = await layer.queryFeatureCount();
-
-            const matching = await layer.queryFeatureCount({
-                where: config.where
+        async function updateMiles() {
+          try {
+            const latestResult = await layer.queryFeatures({
+              where: "1=1",
+              outStatistics: [
+                {
+                  statisticType: "sum",
+                  onStatisticField: "SectionLen",
+                  outStatisticFieldName: "TotalLength",
+                }
+              ],
+              returnGeometry: false,
+              outFields: ["SectionLen"],
+              
             });
+            console.log("Latest Result", latestResult);
+            console.log(latestResult.features.length)
+            console.log()
+            var totalLength = latestResult.features[0].attributes.TotalLength
+            totalLength = feetToMiles(Number(totalLength))
+            console.log(totalLength)
 
-            const percent = total > 0
-                ? Math.round((matching / total) * 100)
-                : 0;
+            document.getElementById("percent").textContent = Math.round(totalLength) + " miles";
 
-            document.getElementById("percent").textContent =
-                percent + "%";
+            document.getElementById("percent").classList.remove("loading");
 
-            document.getElementById("percent")
-                .classList.remove("loading");
-
-            document.getElementById("donut").style.background =
-                `conic-gradient(
+            document.getElementById("donut").style.background = `conic-gradient(
                     ${config.color} 0% ${percent}%,
                     #e5e5e5 ${percent}% 100%
                 )`;
-
-        }
-        catch (error) {
-
+          } catch (error) {
             console.error(error);
 
-            document.getElementById("percent").textContent =
-                "N/A";
+            document.getElementById("percent").textContent = "N/A";
 
-            document.getElementById("label").innerHTML =
-                "Unable to load data";
+            document.getElementById("label").innerHTML = "Unable to load data";
+          }
         }
-    }
 
-    updateChart();
+        async function updateChart() {
+          try {
+            const total = await layer.queryFeatureCount();
 
-    setInterval(updateChart, 300000);
+            const matching = await layer.queryFeatureCount({
+              where: config.where,
+            });
 
-});
-</script>
+            const percent =
+              total > 0 ? Math.round((matching / total) * 100) : 0;
 
-</body>
+            document.getElementById("percent").textContent = percent + "%";
+
+            document.getElementById("percent").classList.remove("loading");
+
+            document.getElementById("donut").style.background = `conic-gradient(
+                    ${config.color} 0% ${percent}%,
+                    #e5e5e5 ${percent}% 100%
+                )`;
+          } catch (error) {
+            console.error(error);
+
+            document.getElementById("percent").textContent = "N/A";
+
+            document.getElementById("label").innerHTML = "Unable to load data";
+          }
+        }
+
+        async function updateStudy() {
+          try {
+            const latestResult = await layer.queryFeatures({
+              where: "1=1",
+              orderByFields: ["PCIDate DESC"],
+              returnGeometry: false,
+              outFields: ["PCIDate"],
+              num: 1,
+            });
+            const latestEpoch = latestResult.features[0].attributes.PCIDate;
+            console.log("Latest Result", latestEpoch);
+
+            const dateString = new Date(latestEpoch).getFullYear();
+            console.log("Date String", dateString);
+
+            document.getElementById("percent").textContent = dateString;
+
+            document.getElementById("percent").classList.remove("loading");
+
+            document.getElementById("donut").style.background = `conic-gradient(
+                    ${config.color} 0% ${percent}%,
+                    #e5e5e5 ${percent}% 100%
+                )`;
+          } catch (error) {
+            console.error(error);
+
+            document.getElementById("percent").textContent = "N/A";
+
+            document.getElementById("label").innerHTML = "Unable to load data";
+          }
+        }
+
+        if (metric == "study") {
+          updateStudy();
+        } else if (metric == "miles"){
+            updateMiles();
+        }else {
+          updateChart();
+        }
+
+        setInterval(updateChart, 300000);
+      });
+    </script>
+  </body>
 </html>
