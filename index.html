@@ -37,11 +37,26 @@
         background: conic-gradient(#4d8658 0% 0%, #e5e5e5 0% 100%);
       }
 
+      .donut[hidden] {
+        display: none;
+      }
+
       .donut-inner {
         width: 58px;
         height: 58px;
         border-radius: 50%;
         background: white;
+      }
+
+      .metric-icon {
+        width: 90px;
+        height: 90px;
+        flex-shrink: 0;
+        object-fit: contain;
+      }
+
+      .metric-icon[hidden] {
+        display: none;
       }
 
       .percent {
@@ -68,6 +83,7 @@
       <div id="donut" class="donut">
         <div class="donut-inner"></div>
       </div>
+      <img id="metric-icon" class="metric-icon" alt="" hidden />
 
       <div>
         <div id="percent" class="percent loading">--%</div>
@@ -105,15 +121,24 @@
           },
           study: {
             label: "Pavement study year",
+            icon: "assets/calendar.png",
           },
           miles: {
             label: "City-maintained streets",
+            icon: "assets/road.png",
           },
         };
 
         const config = configs[metric] || configs.good;
 
         document.getElementById("label").innerHTML = config.label;
+
+        if (config.icon) {
+          document.getElementById("donut").hidden = true;
+          const metricIcon = document.getElementById("metric-icon");
+          metricIcon.src = config.icon;
+          metricIcon.hidden = false;
+        }
 
         const layer = new FeatureLayer({
           url: FEATURE_SERVICE_URL,
@@ -148,11 +173,6 @@
             document.getElementById("percent").textContent = Math.round(totalLength) + " miles";
 
             document.getElementById("percent").classList.remove("loading");
-
-            document.getElementById("donut").style.background = `conic-gradient(
-                    ${config.color} 0% ${percent}%,
-                    #e5e5e5 ${percent}% 100%
-                )`;
           } catch (error) {
             console.error(error);
 
@@ -208,11 +228,6 @@
             document.getElementById("percent").textContent = dateString;
 
             document.getElementById("percent").classList.remove("loading");
-
-            document.getElementById("donut").style.background = `conic-gradient(
-                    ${config.color} 0% ${percent}%,
-                    #e5e5e5 ${percent}% 100%
-                )`;
           } catch (error) {
             console.error(error);
 
@@ -222,15 +237,15 @@
           }
         }
 
-        if (metric == "study") {
-          updateStudy();
-        } else if (metric == "miles"){
-            updateMiles();
-        }else {
-          updateChart();
-        }
+        const updateMetric =
+          metric === "study"
+            ? updateStudy
+            : metric === "miles"
+              ? updateMiles
+              : updateChart;
 
-        setInterval(updateChart, 300000);
+        updateMetric();
+        setInterval(updateMetric, 300000);
       });
     </script>
   </body>
